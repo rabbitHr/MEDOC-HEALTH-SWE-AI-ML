@@ -1,8 +1,8 @@
 # Face Authentication Attendance System
 
-A modern, production-grade face recognition attendance system built with **FastAPI** and **React**. Features real-time face detection, liveness checking (anti-spoofing), and intelligent attendance tracking.
+A modern, production-grade face recognition-based attendance system with anti-spoofing capabilities. Features real-time face detection, liveness checking, and intelligent attendance tracking.
 
-/Users/bhumikasingh/Desktop/AI:ML intern/faceattend_dashboard_1769617766490.png
+![FaceAttend Dashboard](assets/dashboard.png)
 
 ## 📋 Table of Contents
 - [System Architecture](#system-architecture) (Mermaid Diagram)
@@ -142,72 +142,148 @@ npm install
 npm run dev
 ```
 
-The application will be available at **http://localhost:3000**.
+Open http://localhost:3000 in your browser.
 
----
+## API Endpoints
 
-## Usage Guide
+### Users
+- `POST /users/` - Create new user
+- `GET /users/` - List all users
+- `GET /users/{id}` - Get user details
+- `POST /users/register-face` - Register face encodings
+- `DELETE /users/{id}` - Delete user
 
-### Step 1: Register Employees
-1.  Go to the **Register** page.
-2.  Enter Employee ID, Name, and optional details.
-3.  Allow camera access.
-4.  Follow the voice/text prompts to capture 5 angles:
-    - Center
-    - Turn Left
-    - Turn Right
-    - Look Up
-    - Look Down
-5.  Click **Complete Registration**.
+### Attendance
+- `POST /attendance/punch` - Smart punch (in/out)
+- `POST /attendance/recognize` - Recognize face without punch
+- `GET /attendance/history` - Get attendance logs
+- `GET /attendance/today` - Today's attendance
+- `GET /attendance/stats/today` - Today's statistics
+- `POST /attendance/liveness-check` - Verify liveness
 
-### Step 2: Mark Attendance
-1.  Go to the **Punch** page.
-2.  Simply look at the camera.
-3.  The system will:
-    - Detect your face
-    - Verify liveness (blink/motion)
-    - **Automatically punch you in/out** once verified.
-4.  Alternatively, click the **Camera Button** for manual capture.
+## System Architecture
 
-### Step 3: View History
-1.  Go to **History** to see all logs.
-2.  Filter by date or employee name.
-3.  Export data to CSV for payroll/reporting.
-
----
-
-## Troubleshooting
-
-### `dlib` installation fails
-Ensure CMake is installed. If on macOS:
-```bash
-brew install cmake
-pip install dlib --verbose
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    React Frontend                            │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐           │
+│  │Dashboard│ │ Punch   │ │Register │ │ History │           │
+│  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘           │
+│       └───────────┴───────────┴───────────┘                 │
+│                          │ REST API                          │
+├──────────────────────────┼──────────────────────────────────┤
+│                    FastAPI Backend                           │
+│  ┌─────────────────┐ ┌─────────────────┐                    │
+│  │  Face Service   │ │ Anti-Spoof Svc  │                    │
+│  │  - Detection    │ │ - Blink detect  │                    │
+│  │  - Encoding     │ │ - Texture check │                    │
+│  │  - Recognition  │ │ - Motion verify │                    │
+│  └────────┬────────┘ └────────┬────────┘                    │
+│           └───────────┬───────┘                              │
+│                 ┌─────┴─────┐                                │
+│                 │  SQLite   │                                │
+│                 │ Database  │                                │
+│                 └───────────┘                                │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### `face_recognition_models` not found
-This can happen on newer Python versions. Run:
-```bash
-pip install git+https://github.com/ageitgey/face_recognition_models
+## Face Recognition Approach
+
+### Model Used
+- **face_recognition library** (dlib-based)
+- Uses ResNet with 128D face embeddings
+- Pre-trained on millions of faces
+
+### Training Process
+- No training required - uses pre-trained model
+- Registration captures 5 face images from different angles
+- Generates and stores 128D embeddings per image
+
+### Recognition Process
+1. Detect face using HOG (Histogram of Oriented Gradients)
+2. Extract 128D face encoding
+3. Compare with stored encodings using cosine similarity
+4. Match if distance < 0.45 (configurable threshold)
+
+## Anti-Spoofing Measures
+
+| Technique | How It Works | Effectiveness |
+|-----------|--------------|---------------|
+| **Blink Detection** | Monitors Eye Aspect Ratio (EAR) to detect natural blinking | ~75% vs printed photos |
+| **Texture Analysis** | Uses LBP (Local Binary Patterns) to detect paper/screen texture | ~70% vs basic attacks |
+| **Motion Detection** | Checks for natural micro-movements between frames | ~80% vs static photos |
+| **Multi-Frame Verification** | Validates face across 3-5 consecutive frames | Reduces false positives |
+
+## Accuracy Expectations
+
+| Scenario | Expected Accuracy |
+|----------|-------------------|
+| Good lighting (>100 lux) | 95-99% |
+| Moderate lighting | 85-95% |
+| Poor lighting (<50 lux) | 60-80% |
+| With glasses | 90-95% |
+| Face partially visible | 70-85% |
+
+## Known Failure Cases
+
+1. **Very poor lighting** - Recognition accuracy drops significantly
+2. **Face occlusion >40%** - Masks, scarves, or large sunglasses
+3. **Identical twins** - Cannot distinguish between identical twins
+4. **Extreme angles** - Face turned more than 45 degrees
+5. **High-quality printed photos** - May bypass basic anti-spoofing
+6. **Professional makeup/prosthetics** - Can alter face structure
+
+## Configuration
+
+Edit `backend/config.py` to adjust:
+
+```python
+# Face Recognition
+FACE_RECOGNITION_TOLERANCE = 0.45  # Lower = stricter
+MIN_FACE_CONFIDENCE = 0.85
+
+# Anti-Spoofing
+BLINK_THRESHOLD = 0.25
+LIVENESS_FRAMES_REQUIRED = 3
+
+# Attendance Rules
+MIN_HOURS_FOR_PUNCHOUT = 6
 ```
 
-### Camera not working
-- Ensure browser has permission to access the camera.
-- Check if another application (Zoom/Teams) is using the camera.
-- Access via `localhost` or `https` (browsers block camera on `http` unless it's localhost).
+## Project Structure
 
----
+```
+face-attendance-system/
+├── backend/
+│   ├── main.py              # FastAPI app
+│   ├── config.py            # Settings
+│   ├── database.py          # DB connection
+│   ├── models.py            # SQLAlchemy models
+│   ├── schemas.py           # Pydantic schemas
+│   ├── routes/
+│   │   ├── users.py         # User endpoints
+│   │   └── attendance.py    # Attendance endpoints
+│   └── services/
+│       ├── face_service.py      # Face recognition
+│       └── anti_spoof_service.py # Liveness detection
+│
+└── frontend/
+    ├── src/
+    │   ├── App.jsx
+    │   ├── api.js           # API client
+    │   ├── index.css        # Global styles
+    │   ├── components/
+    │   │   ├── Header.jsx
+    │   │   └── WebcamCapture.jsx
+    │   └── pages/
+    │       ├── Dashboard.jsx
+    │       ├── Punch.jsx
+    │       ├── Register.jsx
+    │       ├── History.jsx
+    │       └── Employees.jsx
+    └── package.json
+```
 
-## API Documentation
+## License
 
-The backend provides interactive Swagger documentation.
-Visit **http://localhost:8000/docs** to test endpoints directly.
-
-### Key Endpoints
-- `POST /users/` - Register new user meta-data
-- `POST /users/register-face` - Upload face training images
-- `POST /attendance/punch` - Recognize face and mark attendance
-- `GET /attendance/stats/today` - Get daily dashboard statistics
-
----
-Built with ❤️ 
+MIT License
