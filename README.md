@@ -2,7 +2,7 @@
 
 A modern, production-grade face recognition attendance system built with **FastAPI** and **React**. Features real-time face detection, liveness checking (anti-spoofing), and intelligent attendance tracking.
 
-![FaceAttend Dashboard](/Users/bhumikasingh/Desktop/AI:ML intern/faceattend_dashboard_1769617766490.png)
+/Users/bhumikasingh/Desktop/AI:ML intern/faceattend_dashboard_1769617766490.png
 
 ## 📋 Table of Contents
 - [System Architecture](#system-architecture) (Mermaid Diagram)
