@@ -210,4 +210,4 @@ Visit **http://localhost:8000/docs** to test endpoints directly.
 - `GET /attendance/stats/today` - Get daily dashboard statistics
 
 ---
-Built with ❤️ via Agentic AI
+Built with ❤️ 
